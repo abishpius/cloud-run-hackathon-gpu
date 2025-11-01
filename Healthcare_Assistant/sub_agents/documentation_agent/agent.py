@@ -13,5 +13,5 @@ documentation_agent = Agent(
     instruction=DOCUMENTATION_AGENT_PROMPT,
     tools=[deid_tool],
     # Add an after agent callback
-    after_agent_callback=store_documentation_firestore
+    after_model_callback=store_documentation_firestore
 )

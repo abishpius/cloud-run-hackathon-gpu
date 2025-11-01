@@ -31,5 +31,5 @@ Important constraints:
   even if upstream agents fail or return no data.
 - When you receive the command 'DONE' Always call `clinical_documentation_agent` to store the encounter.
 
-Output: {patient_summary, clinician_summary, acm: {what_was_called, errors}}
+Output: Human-readable format for a patient who is a non-medical, layperson.
     """
