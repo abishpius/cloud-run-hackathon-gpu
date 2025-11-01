@@ -4,3 +4,4 @@ uvicorn[standard]~=0.38.0
 pydantic~=2.12.3
 python-dotenv~=1.1.0
 google-adk[a2a]
+google-cloud-firestore~=2.11.0

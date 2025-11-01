@@ -3,7 +3,7 @@ import os
 from google.adk.agents import Agent
 from dotenv import load_dotenv
 from .prompts import DOCUMENTATION_AGENT_PROMPT
-from .tools import deid_tool 
+from .tools import deid_tool, store_documentation_firestore
 
 load_dotenv()
 
@@ -13,4 +13,5 @@ documentation_agent = Agent(
     instruction=DOCUMENTATION_AGENT_PROMPT,
     tools=[deid_tool],
     # Add an after agent callback
+    after_agent_callback=store_documentation_firestore
 )
