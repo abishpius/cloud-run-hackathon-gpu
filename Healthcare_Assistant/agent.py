@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Optional
 
 from google.adk.agents import Agent
+from google.adk.tools.agent_tool import AgentTool
 from google.adk.artifacts import InMemoryArtifactService
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
@@ -68,6 +69,7 @@ root_agent = Agent(
         specialist_agent,
         documentation_agent, 
     ],
+    # tools = [AgentTool(documentation_agent)],
     # output_schema=PrimaryAgentOutput,
 )
 
