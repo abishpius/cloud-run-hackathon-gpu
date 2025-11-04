@@ -1,0 +1,91 @@
+################################################################################
+# Healthcare Assistant - Terraform Variables Example
+#
+# Copy this file to terraform.tfvars and update with your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Then edit terraform.tfvars with your specific configuration.
+################################################################################
+
+# Required: Your GCP Project ID
+project_id = "hackathons-461900"
+
+# GCP Region (default: us-central1)
+region = "us-central1"
+
+# Environment name
+environment = "production"
+
+################################################################################
+# Cloud Run Configuration
+################################################################################
+
+# Service name
+service_name = "healthcare-assistant-agent-service"
+
+# Container image (update after building)
+# Format: REGION-docker.pkg.dev/PROJECT_ID/REPO_NAME/IMAGE_NAME:TAG
+container_image = "gcr.io/hackathons-461900/healthcare-assistant-agent-service:latest"
+
+# Resource allocation
+memory        = "2Gi"
+cpu           = "2"
+min_instances = 0
+max_instances = 10
+
+# Allow public access (set to false to require authentication)
+allow_unauthenticated_access = true
+
+################################################################################
+# Application Configuration
+################################################################################
+
+app_name = "healthcare-assistant-app"
+
+# Gemini models for each agent
+root_model                 = "gemini-2.5-flash"
+symptom_agent_model        = "gemini-2.5-flash"
+documentation_agent_model  = "gemini-2.5-flash"
+lifestyle_agent_model      = "gemini-2.5-flash"
+medical_labs_agent_model   = "gemini-2.5-flash"
+medications_agent_model    = "gemini-2.5-flash"
+specialist_agent_model     = "gemini-2.5-flash"
+
+################################################################################
+# Firestore Configuration
+################################################################################
+
+# Set to true if you need to create a new Firestore database
+# Set to false if you already have one
+create_firestore_database = false
+
+firestore_location   = "us-central"
+firestore_collection = "healthcare-assistant"
+
+################################################################################
+# Artifact Registry Configuration
+################################################################################
+
+artifact_registry_repo = "healthcare-assistant"
+
+################################################################################
+# CI/CD Configuration (Optional)
+################################################################################
+
+# Set to true to enable automatic deployments from GitHub
+enable_cicd = false
+
+# If enable_cicd is true, configure these:
+# github_owner  = "your-github-username"
+# github_repo   = "cloud-run-hackathon-gpu"
+# cicd_branch   = "main"
+
+################################################################################
+# Labels (Optional)
+################################################################################
+
+labels = {
+  team        = "healthcare"
+  cost-center = "engineering"
+  purpose     = "ai-assistant"
+}
