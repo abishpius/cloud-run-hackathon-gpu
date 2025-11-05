@@ -173,7 +173,7 @@ async def create_new_session(request: NewSessionRequest):
     session_id = request.session_id or f"session_{uuid.uuid4().hex[:8]}"
 
     # Create session
-    session_service.create_session(
+    await session_service.create_session(
         app_name=APP_NAME,
         user_id=user_id,
         session_id=session_id
@@ -212,7 +212,7 @@ async def chat(message: ChatMessage):
     try:
         # Always try to create the session (it's safer than checking if it exists)
         try:
-            session_service.create_session(
+            await session_service.create_session(
                 app_name=APP_NAME,
                 user_id=message.user_id,
                 session_id=message.session_id
@@ -290,7 +290,7 @@ async def chat_stream(message: ChatMessage):
         try:
             # Always try to create the session (it's safer than checking if it exists)
             try:
-                session_service.create_session(
+                await session_service.create_session(
                     app_name=APP_NAME,
                     user_id=message.user_id,
                     session_id=message.session_id
@@ -366,7 +366,7 @@ async def get_session_state(user_id: str, session_id: str):
         )
 
     try:
-        session = session_service.get_session(
+        session = await session_service.get_session(
             app_name=APP_NAME,
             user_id=user_id,
             session_id=session_id
@@ -408,7 +408,7 @@ async def delete_session(user_id: str, session_id: str):
         )
 
     try:
-        session_service.delete_session(
+        await session_service.delete_session(
             app_name=APP_NAME,
             user_id=user_id,
             session_id=session_id
