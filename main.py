@@ -192,28 +192,34 @@ async def chat(message: ChatMessage):
 
     - Non-streaming endpoint
     - Processes all events and returns final response
+    - Auto-creates session if it doesn't exist
     """
-    if runner is None or session_service is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Runner service not initialized"
+    global session_service, artifact_service, runner
+
+    # Initialize services if not already done (handles cold starts)
+    if session_service is None:
+        session_service = InMemorySessionService()
+    if artifact_service is None:
+        artifact_service = InMemoryArtifactService()
+    if runner is None:
+        runner = Runner(
+            agent=root_agent,
+            app_name=APP_NAME,
+            session_service=session_service,
+            artifact_service=artifact_service
         )
 
     try:
-        # Ensure session exists (create if it doesn't)
-        existing_session = session_service.get_session(
-            app_name=APP_NAME,
-            user_id=message.user_id,
-            session_id=message.session_id
-        )
-
-        if existing_session is None:
-            # Session doesn't exist, create it
+        # Always try to create the session (it's safer than checking if it exists)
+        try:
             session_service.create_session(
                 app_name=APP_NAME,
                 user_id=message.user_id,
                 session_id=message.session_id
             )
+        except Exception:
+            # Session might already exist, that's fine
+            pass
 
         # Create user content
         user_content = types.Content(
