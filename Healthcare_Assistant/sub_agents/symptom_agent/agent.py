@@ -9,6 +9,6 @@ load_dotenv()
 
 symptom_agent = Agent(
     name="symptom_analysis_agent",
-    model=os.getenv("SYMPTOM_AGENT_MODEL", 'Gemini-2.5-Flash'),
+    model=os.getenv("SYMPTOM_AGENT_MODEL", 'gemini-2.5-Flash'),
     instruction=SYMPTOM_AGENT_PROMPT,
 )

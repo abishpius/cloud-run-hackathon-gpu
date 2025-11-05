@@ -9,6 +9,6 @@ load_dotenv()
 
 med_interaction_agent = Agent(
     name="medication_interaction_agent",
-    model=os.getenv("MEDICATIONS_AGENT_MODEL", 'Gemini-2.5-Flash'),
+    model=os.getenv("MEDICATIONS_AGENT_MODEL", 'gemini-2.5-Flash'),
     instruction=MEDICATIONS_AGENT_PROMPT,
 )

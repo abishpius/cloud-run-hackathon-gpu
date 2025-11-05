@@ -8,7 +8,7 @@ load_dotenv()
 
 lifestyle_agent = Agent(
     name="lifestyle_prevention_agent",
-    model=os.getenv("LIFESTYLE_AGENT_MODEL", 'Gemini-2.5-Flash'), 
+    model=os.getenv("LIFESTYLE_AGENT_MODEL", 'gemini-2.5-Flash'), 
     instruction=LIFESTYLE_AGENT_PROMPT,
 
 )
