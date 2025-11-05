@@ -100,19 +100,19 @@ The Healthcare Assistant is built using:
 2. **Build and deploy**:
    ```bash
    # Build container with Cloud Build
-   gcloud builds submit --tag gcr.io/${PROJECT_ID}/${SERVICE_NAME}
+   gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/${SERVICE_NAME}
 
    # Deploy to Cloud Run
    gcloud run deploy ${SERVICE_NAME} \
-     --image gcr.io/${PROJECT_ID}/${SERVICE_NAME} \
+     --image gcr.io/${GOOGLE_CLOUD_PROJECT}/${SERVICE_NAME} \
      --platform managed \
-     --region ${REGION} \
+     --region ${GOOGLE_CLOUD_LOCATION} \
      --allow-unauthenticated \
      --memory 2Gi \
      --cpu 2 \
      --timeout 300 \
-     --max-instances 10 \
-     --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION},GOOGLE_GENAI_USE_VERTEXAI=1,ROOT_MODEL=gemini-2.5-flash,APP_NAME=healthcare-assistant-app"
+     --max-instances 2 \
+     --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION},GOOGLE_GENAI_USE_VERTEXAI=1,ROOT_MODEL=gemini-2.5-flash,APP_NAME=healthcare-assistant-app"
    ```
 
 ### Method 2: Using Cloud Console
