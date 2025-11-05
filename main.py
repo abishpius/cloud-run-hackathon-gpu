@@ -193,13 +193,28 @@ async def chat(message: ChatMessage):
     - Non-streaming endpoint
     - Processes all events and returns final response
     """
-    if runner is None:
+    if runner is None or session_service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Runner service not initialized"
         )
 
     try:
+        # Ensure session exists (create if it doesn't)
+        existing_session = session_service.get_session(
+            app_name=APP_NAME,
+            user_id=message.user_id,
+            session_id=message.session_id
+        )
+
+        if existing_session is None:
+            # Session doesn't exist, create it
+            session_service.create_session(
+                app_name=APP_NAME,
+                user_id=message.user_id,
+                session_id=message.session_id
+            )
+
         # Create user content
         user_content = types.Content(
             role='user',
@@ -248,7 +263,7 @@ async def chat_stream(message: ChatMessage):
     - Streaming endpoint using Server-Sent Events (SSE)
     - Returns events as they occur during agent processing
     """
-    if runner is None:
+    if runner is None or session_service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Runner service not initialized"
@@ -257,6 +272,21 @@ async def chat_stream(message: ChatMessage):
     async def event_generator():
         """Generate Server-Sent Events from agent execution"""
         try:
+            # Ensure session exists (create if it doesn't)
+            existing_session = session_service.get_session(
+                app_name=APP_NAME,
+                user_id=message.user_id,
+                session_id=message.session_id
+            )
+
+            if existing_session is None:
+                # Session doesn't exist, create it
+                session_service.create_session(
+                    app_name=APP_NAME,
+                    user_id=message.user_id,
+                    session_id=message.session_id
+                )
+
             # Create user content
             user_content = types.Content(
                 role='user',
