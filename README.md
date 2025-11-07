@@ -43,7 +43,7 @@ Healthcare Assistant is an intelligent, multi-agent system designed to provide p
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Cloud Run Service                         │
+│         Cloud Run Service with GPU (NVIDIA L4)              │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │              FastAPI Application                       │  │
 │  │  ┌─────────────────────────────────────────────────┐  │  │
@@ -51,6 +51,7 @@ Healthcare Assistant is an intelligent, multi-agent system designed to provide p
 │  │  │                                                  │  │  │
 │  │  │  ┌────────────────────────────────────────┐     │  │  │
 │  │  │  │   Dr. Cloud (Root Agent/Orchestrator)  │     │  │  │
+│  │  │  │   (Ollama MedGemma or Vertex AI)       │     │  │  │
 │  │  │  │                                         │     │  │  │
 │  │  │  │  ┌──────────────────────────────────┐  │     │  │  │
 │  │  │  │  │      Sub-Agents:                 │  │     │  │  │
@@ -64,18 +65,30 @@ Healthcare Assistant is an intelligent, multi-agent system designed to provide p
 │  │  │  └────────────────────────────────────────┘     │  │  │
 │  │  └─────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │              Ollama Server (Port 11434)               │  │
+│  │              Model: medgemma-custom                   │  │
+│  │              (Loaded from GCS Bucket)                 │  │
+│  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                            │
                            ▼
               ┌────────────────────────┐
               │   Vertex AI Gemini     │
               │   (gemini-2.5-flash)   │
+              │   (for sub-agents)     │
               └────────────────────────┘
                            │
                            ▼
               ┌────────────────────────┐
               │   Cloud Firestore      │
               │ (Clinical Documentation)│
+              └────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │  Cloud Storage Bucket  │
+              │   (Model Files: GCS)   │
               └────────────────────────┘
 ```
 
@@ -251,9 +264,44 @@ curl -X POST http://localhost:8080/api/v1/chat \
 
 ## Deployment
 
-### Method 1: Shell Script (Recommended)
+### Method 1: Ollama MedGemma with GPU (Recommended for Medical AI)
 
-The easiest way to deploy:
+Deploy with Ollama's MedGemma model running on Cloud Run with NVIDIA L4 GPU:
+
+```bash
+# Build and push the container image
+gcloud builds submit --tag gcr.io/hackathons-461900/ollama-medgemma-adk
+
+# Deploy to Cloud Run with GPU
+gcloud run deploy medgemma-service \
+  --image gcr.io/hackathons-461900/ollama-medgemma-adk \
+  --concurrency 4 \
+  --cpu 8 \
+  --gpu 1 \
+  --gpu-type nvidia-l4 \
+  --max-instances 1 \
+  --memory 32Gi \
+  --allow-unauthenticated \
+  --no-cpu-throttling \
+  --timeout=600 \
+  --region us-central1 \
+  --add-volume name=model-vol,type=cloud-storage,bucket=ap-medgemma \
+  --add-volume-mount volume=model-vol,mount-path=/models \
+  --set-env-vars OLLAMA_MODELS=/ollama-models,GOOGLE_CLOUD_PROJECT=hackathons-461900,GOOGLE_CLOUD_LOCATION=us-central1,GOOGLE_GENAI_USE_VERTEXAI=1,ROOT_MODEL=gemini-2.5-flash,SYMPTOM_AGENT_MODEL=gemini-2.5-flash,DOCUMENTATION_AGENT_MODEL=gemini-2.5-flash,LIFESTYLE_AGENT_MODEL=gemini-2.5-flash,MEDICAL_LABS_AGENT_MODEL=gemini-2.5-flash,MEDICATIONS_AGENT_MODEL=gemini-2.5-flash,SPECIALIST_AGENT_MODEL=gemini-2.5-flash,AGENT_PATH=./Healthcare_Assistant,SERVICE_NAME=healthcare-assistant-agent-service,APP_NAME=healthcare-assistant-app,FIRESTORE_COLLECTION=healthcare-assistant,OLLAMA_API_BASE=http://localhost:11434
+```
+
+**Key Features:**
+- 🚀 **GPU Acceleration**: NVIDIA L4 GPU for faster inference
+- 🏥 **Medical Model**: MedGemma specialized for healthcare
+- 💾 **32GB Memory**: Large memory for handling complex medical queries
+- 📦 **GCS Integration**: Model files loaded from Cloud Storage bucket
+- ⚡ **High CPU**: 8 vCPUs for optimal performance
+
+For detailed Ollama setup instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md#ollama-medgemma-deployment-with-gpu).
+
+### Method 2: Shell Script (Standard Deployment)
+
+The easiest way to deploy with Vertex AI:
 
 ```bash
 # Make script executable
@@ -271,7 +319,7 @@ The script will:
 - ✅ Configure environment variables
 - ✅ Display service URL
 
-### Method 2: Terraform (Infrastructure as Code)
+### Method 3: Terraform (Infrastructure as Code)
 
 For production deployments:
 
@@ -288,7 +336,7 @@ terraform plan
 terraform apply
 ```
 
-### Method 3: Manual Deployment
+### Method 4: Manual Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed manual deployment instructions.
 
@@ -421,6 +469,7 @@ cloud-run-hackathon-gpu/
 
 ### Cloud Run Configuration
 
+#### Standard Deployment (Vertex AI)
 Recommended settings:
 
 - **Memory**: 2 GiB (minimum)
@@ -428,6 +477,18 @@ Recommended settings:
 - **Max Instances**: 10
 - **Timeout**: 300 seconds
 - **Concurrency**: 80
+
+#### Ollama MedGemma Deployment (GPU)
+Recommended settings:
+
+- **Memory**: 32 GiB (for model loading)
+- **CPU**: 8 vCPUs
+- **GPU**: 1 x NVIDIA L4
+- **Max Instances**: 1 (GPU quota dependent)
+- **Timeout**: 600 seconds
+- **Concurrency**: 4 (GPU memory constraints)
+- **No CPU Throttling**: Enabled
+- **Volume Mount**: GCS bucket for model files
 
 ## Development
 

@@ -1,7 +1,8 @@
-google-adk~=1.5.0
-fastapi~=0.119.1
-uvicorn[standard]~=0.38.0
-pydantic~=2.12.3
-python-dotenv~=1.1.0
+google-adk>=1.5.0
+fastapi>=0.119.1
+uvicorn[standard]>=0.38.0
+pydantic>=2.12.3
+python-dotenv>=1.1.0
 google-adk[a2a]
-google-cloud-firestore~=2.11.0
+google-cloud-firestore>=2.11.0
+litellm>=1.35.0

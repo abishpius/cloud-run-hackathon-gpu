@@ -88,7 +88,145 @@ The Healthcare Assistant is built using:
 
 ## Cloud Run Deployment
 
-### Method 1: Using gcloud CLI
+### Method 1: Ollama MedGemma Deployment with GPU
+
+This method deploys the Healthcare Assistant using Ollama's MedGemma model on Cloud Run with NVIDIA L4 GPU acceleration.
+
+#### Prerequisites
+
+- Google Cloud project with billing enabled
+- GPU quota in your region (NVIDIA L4)
+- gcloud CLI installed and configured
+- Cloud Storage bucket for model files
+
+#### Step 1: Install Ollama and Set Up MedGemma Model
+
+If you haven't already set up the MedGemma model, follow these steps in Cloud Shell:
+
+**1.1 Install Ollama:**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+**1.2 Pull the MedGemma model:**
+```bash
+ollama pull alibayram/medgemma
+```
+
+**1.3 Create a custom model:**
+
+Create a file named `medgemma-modelfile` with the following content:
+```
+FROM alibayram/medgemma
+```
+
+Then create the custom model:
+```bash
+ollama create medgemma-custom -f medgemma-modelfile
+```
+
+**1.4 Set up your GCS bucket:**
+```bash
+# Set your GCS bucket name
+export BUCKET_NAME=ap-medgemma
+
+# Create the GCS bucket (if it doesn't exist)
+gsutil mb gs://${BUCKET_NAME}
+```
+
+**1.5 Upload model files to Cloud Storage:**
+```bash
+# Navigate to Ollama models directory
+cd /usr/share/ollama/.ollama/models
+
+# Upload all model files to GCS
+gsutil -m cp -r . gs://${BUCKET_NAME}/
+```
+
+#### Step 2: Build and Push Container Image
+
+```bash
+# Build the container image with Cloud Build
+gcloud builds submit --tag gcr.io/hackathons-461900/ollama-medgemma-adk
+```
+
+This command will:
+- Build the Docker image defined in your Dockerfile
+- Push it to Google Container Registry
+- Make it available for Cloud Run deployment
+
+#### Step 3: Deploy to Cloud Run with GPU
+
+```bash
+gcloud run deploy medgemma-service \
+  --image gcr.io/hackathons-461900/ollama-medgemma-adk \
+  --concurrency 4 \
+  --cpu 8 \
+  --gpu 1 \
+  --gpu-type nvidia-l4 \
+  --max-instances 1 \
+  --memory 32Gi \
+  --allow-unauthenticated \
+  --no-cpu-throttling \
+  --timeout=600 \
+  --region us-central1 \
+  --add-volume name=model-vol,type=cloud-storage,bucket=ap-medgemma \
+  --add-volume-mount volume=model-vol,mount-path=/models \
+  --set-env-vars OLLAMA_MODELS=/ollama-models,GOOGLE_CLOUD_PROJECT=hackathons-461900,GOOGLE_CLOUD_LOCATION=us-central1,GOOGLE_GENAI_USE_VERTEXAI=1,ROOT_MODEL=gemini-2.5-flash,SYMPTOM_AGENT_MODEL=gemini-2.5-flash,DOCUMENTATION_AGENT_MODEL=gemini-2.5-flash,LIFESTYLE_AGENT_MODEL=gemini-2.5-flash,MEDICAL_LABS_AGENT_MODEL=gemini-2.5-flash,MEDICATIONS_AGENT_MODEL=gemini-2.5-flash,SPECIALIST_AGENT_MODEL=gemini-2.5-flash,AGENT_PATH=./Healthcare_Assistant,SERVICE_NAME=healthcare-assistant-agent-service,APP_NAME=healthcare-assistant-app,FIRESTORE_COLLECTION=healthcare-assistant,OLLAMA_API_BASE=http://localhost:11434
+```
+
+#### Deployment Configuration Details
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `--concurrency` | 4 | Max concurrent requests per instance (GPU memory constraint) |
+| `--cpu` | 8 | Number of vCPUs for optimal performance |
+| `--gpu` | 1 | Number of GPUs per instance |
+| `--gpu-type` | nvidia-l4 | GPU type (NVIDIA L4 for inference) |
+| `--max-instances` | 1 | Maximum instances (adjust based on GPU quota) |
+| `--memory` | 32Gi | Memory allocation for model loading |
+| `--no-cpu-throttling` | - | Disable CPU throttling for consistent performance |
+| `--timeout` | 600 | Request timeout in seconds (10 minutes) |
+| `--add-volume` | GCS bucket | Mount Cloud Storage bucket containing model files |
+| `--add-volume-mount` | /models | Mount path inside container |
+
+#### Environment Variables for Ollama Deployment
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `OLLAMA_MODELS` | /ollama-models | Directory for Ollama model storage |
+| `OLLAMA_API_BASE` | http://localhost:11434 | Ollama API endpoint |
+| `GOOGLE_CLOUD_PROJECT` | hackathons-461900 | Your GCP project ID |
+| `GOOGLE_CLOUD_LOCATION` | us-central1 | GCP region |
+| `ROOT_MODEL` | gemini-2.5-flash | Model for root agent (can use Ollama or Vertex AI) |
+| `*_AGENT_MODEL` | gemini-2.5-flash | Models for sub-agents |
+
+#### Step 4: Verify Deployment
+
+After deployment completes, test your service:
+
+```bash
+# Get the service URL
+gcloud run services describe medgemma-service --region us-central1 --format 'value(status.url)'
+
+# Test health endpoint
+curl https://YOUR-SERVICE-URL/health
+
+# Create a session
+curl -X POST https://YOUR-SERVICE-URL/api/v1/session/new \
+  -H "Content-Type: application/json"
+
+# Send a medical query
+curl -X POST https://YOUR-SERVICE-URL/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user_test",
+    "session_id": "session_test",
+    "message": "I have a persistent cough and fever for 3 days"
+  }'
+```
+
+### Method 2: Using gcloud CLI (Standard Vertex AI Deployment)
 
 1. **Set environment variables**:
    ```bash
@@ -301,6 +439,49 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
    - Ensure service account has Vertex AI User role
    - Verify GOOGLE_CLOUD_PROJECT is set correctly
 
+### Ollama-Specific Troubleshooting
+
+1. **GPU quota errors**
+   - Check your GPU quota in the GCP Console: IAM & Admin > Quotas
+   - Request quota increase for "NVIDIA L4 GPUs" in your region
+   - Typical quota: 0-1 GPUs by default, may need to request more
+
+2. **Model not loading from GCS**
+   - Verify the GCS bucket exists: `gsutil ls gs://ap-medgemma`
+   - Check bucket permissions: Service account needs Storage Object Viewer role
+   - Verify model files were uploaded correctly
+   - Check Cloud Run logs for mount errors
+
+3. **Ollama server not starting**
+   - Check Dockerfile has Ollama installation steps
+   - Verify OLLAMA_API_BASE is set to `http://localhost:11434`
+   - Check that the startup script starts Ollama before the FastAPI app
+   - View logs: `gcloud run services logs read medgemma-service --limit 100`
+
+4. **High memory usage / OOM errors**
+   - MedGemma model requires significant memory (8-16GB+ for the model)
+   - Ensure memory is set to at least 32Gi
+   - Reduce concurrency if memory issues persist
+   - Monitor memory: `gcloud monitoring timeseries list --filter metric.type="run.googleapis.com/container/memory/utilization"`
+
+5. **Slow inference / cold starts**
+   - First request may take 30-60 seconds as model loads into GPU memory
+   - Consider using min-instances=1 to keep service warm (costs more)
+   - Cold start time: ~60-90 seconds with GPU and large model
+   - Warm requests: ~2-5 seconds depending on query complexity
+
+6. **Volume mount issues**
+   - Ensure the GCS bucket name is correct in the deploy command
+   - Verify the mount path `/models` is accessible
+   - Check Cloud Run logs for mount-related errors
+   - Service account needs `storage.objectViewer` role on the bucket
+
+7. **Model compatibility issues**
+   - Ensure you're using the correct model name: `medgemma-custom`
+   - Verify model was created with: `ollama create medgemma-custom -f medgemma-modelfile`
+   - Check model exists in Ollama: `ollama list` (during setup)
+   - Model files must be in GGUF or Ollama's native format
+
 ## Security Considerations
 
 1. **Authentication**: Consider adding authentication middleware for production
@@ -308,6 +489,35 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 3. **Data Privacy**: Healthcare data is sensitive - ensure compliance with HIPAA/regulations
 4. **Environment Variables**: Use Secret Manager for sensitive configuration
 5. **CORS**: Configure CORS appropriately for your frontend domains
+
+## Performance Considerations
+
+### Ollama MedGemma with GPU
+- **Cold Start**: 60-90 seconds (model loading + GPU initialization)
+- **Warm Request**: 2-5 seconds (depending on query complexity)
+- **Concurrent Requests**: 4 max (GPU memory constraint)
+- **Cost**: ~$0.50-1.00/hour for L4 GPU + compute + storage
+- **Best For**: Medical-specific queries requiring domain expertise
+
+### Standard Vertex AI Deployment
+- **Cold Start**: 3-5 seconds
+- **Warm Request**: 1-3 seconds
+- **Concurrent Requests**: 80 max per instance
+- **Cost**: ~$0.01-0.05 per request (usage-based)
+- **Best For**: General healthcare queries, high concurrency needs
+
+## Cost Optimization
+
+### Ollama GPU Deployment
+- Use `--min-instances 0` to scale to zero when not in use
+- Consider scheduling: turn off during off-peak hours
+- Use `--max-instances 1` unless you have high GPU quota
+- Monitor usage and optimize concurrency settings
+
+### Standard Deployment
+- Use auto-scaling with appropriate min/max instances
+- Implement caching for frequently asked questions
+- Use request batching where possible
 
 ## Next Steps
 
@@ -317,6 +527,8 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 - Configure custom domain
 - Implement caching for common queries
 - Add request validation and rate limiting
+- Set up Cloud Monitoring dashboards for GPU metrics
+- Configure log-based alerts for errors and performance issues
 
 ## Resources
 
