@@ -4,6 +4,8 @@ Interactive chat page with Dr. Cloud
 """
 import streamlit as st
 from datetime import datetime
+import json
+import re
 
 from config.settings import settings
 from components.api_client import api_client
@@ -43,9 +45,8 @@ def create_backend_session():
     """Create a new session with the backend"""
     try:
         with st.spinner("Creating new session..."):
-            # Create session with username as user_id
-            username = st.session_state.get('username', 'anonymous')
-            response = api_client.create_session(user_id=username)
+            # Create session with anonymous user_id
+            response = api_client.create_session(user_id='user')
 
             st.session_state.backend_user_id = response['user_id']
             st.session_state.backend_session_id = response['session_id']
@@ -56,6 +57,58 @@ def create_backend_session():
     except Exception as e:
         st.error(format_error_message(e))
         return False
+
+
+def is_json_response(text: str) -> bool:
+    """
+    Check if the response is primarily JSON output
+
+    Args:
+        text: Response text to check
+
+    Returns:
+        True if the text appears to be JSON, False otherwise
+    """
+    # Strip whitespace
+    text = text.strip()
+
+    # Check for markdown code blocks (```json ... ``` or ``` ... ```)
+    markdown_json_pattern = r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```'
+    markdown_matches = re.findall(markdown_json_pattern, text, re.DOTALL)
+
+    if markdown_matches:
+        for match in markdown_matches:
+            try:
+                json.loads(match.strip())
+                # If the code block is substantial and represents most of the response
+                if len(match) > 50:
+                    return True
+            except json.JSONDecodeError:
+                continue
+
+    # Check if it starts and ends with JSON markers
+    if (text.startswith('{') and text.endswith('}')) or (text.startswith('[') and text.endswith(']')):
+        try:
+            json.loads(text)
+            return True
+        except json.JSONDecodeError:
+            pass
+
+    # Check if it contains large JSON blocks (even if embedded in text)
+    # Look for patterns like {...} or [...] that span multiple lines
+    json_pattern = r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\])'
+    matches = re.findall(json_pattern, text, re.DOTALL)
+
+    for match in matches:
+        try:
+            json.loads(match)
+            # If the JSON block is substantial (>100 chars) and represents most of the response
+            if len(match) > 100 and len(match) / len(text) > 0.7:
+                return True
+        except json.JSONDecodeError:
+            continue
+
+    return False
 
 
 def start_new_conversation():
@@ -76,28 +129,30 @@ def start_new_conversation():
     st.rerun()
 
 
-def send_message_to_backend(user_message: str):
+def send_message_to_backend(user_message: str, is_followup: bool = False):
     """
     Send message to backend and get response
 
     Args:
         user_message: User's message text
+        is_followup: Whether this is a follow-up to handle JSON response
     """
     # Create session if needed
     if not st.session_state.conversation_started:
         if not create_backend_session():
             return
 
-    # Add user message to chat
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_message,
-        "timestamp": datetime.now()
-    })
+    # Add user message to chat (only if not a followup)
+    if not is_followup:
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_message,
+            "timestamp": datetime.now()
+        })
 
-    # Display user message immediately
-    with st.chat_message("user", avatar=get_user_avatar()):
-        st.markdown(user_message)
+        # Display user message immediately
+        with st.chat_message("user", avatar=get_user_avatar()):
+            st.markdown(user_message)
 
     # Get response from backend
     with st.chat_message("assistant", avatar=get_agent_avatar()):
@@ -117,16 +172,46 @@ def send_message_to_backend(user_message: str):
             # Get response text
             assistant_response = response.get("response", "I apologize, but I couldn't generate a response.")
 
-            # Display response
-            message_placeholder.markdown(assistant_response)
+            # Check if response is JSON
+            if is_json_response(assistant_response):
+                # Don't display the JSON, show that agent is still thinking
+                message_placeholder.markdown("🤔 Processing information... Let me explain this in simpler terms.")
 
-            # Add to message history
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": assistant_response,
-                "timestamp": datetime.now(),
-                "metadata": response.get("metadata", {})
-            })
+                # Automatically send back with layperson prompt
+                followup_message = f"Can you explain this to a layperson:\n\n{assistant_response}"
+
+                # Call backend again
+                followup_response = api_client.send_message(
+                    user_id=st.session_state.backend_user_id,
+                    session_id=st.session_state.backend_session_id,
+                    message=followup_message
+                )
+
+                # Get the explained response
+                explained_response = followup_response.get("response", "I apologize, but I couldn't generate a response.")
+
+                # Display the explained response
+                message_placeholder.markdown(explained_response)
+
+                # Add the explained response to message history
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": explained_response,
+                    "timestamp": datetime.now(),
+                    "metadata": followup_response.get("metadata", {})
+                })
+
+            else:
+                # Display normal response
+                message_placeholder.markdown(assistant_response)
+
+                # Add to message history
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": assistant_response,
+                    "timestamp": datetime.now(),
+                    "metadata": response.get("metadata", {})
+                })
 
         except Exception as e:
             error_msg = format_error_message(e)
@@ -268,11 +353,6 @@ def render_chat_interface():
 
 def main():
     """Main chat page logic"""
-
-    # Check authentication
-    if not st.session_state.get('authentication_status'):
-        st.warning("🔒 Please log in to access the chat.")
-        st.stop()
 
     # Initialize session
     initialize_session()

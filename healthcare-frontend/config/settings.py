@@ -19,18 +19,13 @@ class Settings:
     )
 
     # Application Configuration
-    APP_NAME: str = "Healthcare Assistant"
+    APP_NAME: str = "Your Healthcare Assistant"
     APP_SUBTITLE: str = "Your AI-Powered Primary Care Companion"
 
     # Page Configuration
     PAGE_TITLE: str = "Dr. Cloud - Healthcare Assistant"
     PAGE_ICON: str = "🏥"
     LAYOUT: str = "wide"
-
-    # Authentication Configuration
-    COOKIE_NAME: str = "healthcare_assistant_auth"
-    COOKIE_KEY: str = os.getenv("COOKIE_KEY", "healthcare_secret_key_change_in_production")
-    COOKIE_EXPIRY_DAYS: int = 30
 
     # Chat Configuration
     MAX_MESSAGE_LENGTH: int = 2000
@@ -46,9 +41,6 @@ class Settings:
         "and is NOT a substitute for professional medical advice, diagnosis, or treatment. "
         "Always seek the advice of qualified health providers."
     )
-
-    # User Database (for simple auth - use external auth in production)
-    USERS_FILE: str = os.getenv("USERS_FILE", "config/users.yaml")
 
     @classmethod
     def get_backend_url(cls, endpoint: str = "") -> str:
