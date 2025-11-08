@@ -91,8 +91,7 @@ def show_login_page():
             config['credentials'],
             config['cookie']['name'],
             config['cookie']['key'],
-            config['cookie']['expiry_days'],
-            {}  # preauthorized
+            config['cookie']['expiry_days']
         )
 
         # Login widget

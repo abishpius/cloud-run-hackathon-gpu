@@ -15,7 +15,7 @@ class Settings:
     # Backend API Configuration
     BACKEND_API_URL: str = os.getenv(
         "BACKEND_API_URL",
-        "http://localhost:8080"  # Default for local development
+        "https://medgemma-service-602402744184.us-central1.run.app"  # Deployed Cloud Run service
     )
 
     # Application Configuration
