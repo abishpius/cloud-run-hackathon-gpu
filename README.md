@@ -2,7 +2,7 @@
 
 A sophisticated multi-agent healthcare assistant system built with Google's Agent Development Kit (ADK), deployed as a serverless Cloud Run service. Dr. Cloud acts as a virtual primary care physician, orchestrating specialized sub-agents to provide comprehensive healthcare guidance.
 
-Try it here: ![Dr. Cloud](https://healthcare-frontend-602402744184.us-central1.run.app/)
+Try it here: [Dr. Cloud](https://healthcare-frontend-602402744184.us-central1.run.app/)
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
