@@ -18,9 +18,11 @@
 #   --project-id    GCP project ID (default: from .env or hackathons-461900)
 #   --region        GCP region (default: us-central1)
 #   --service-name  Cloud Run service name (default: healthcare-assistant-agent-service)
-#   --memory        Memory allocation (default: 2Gi)
-#   --cpu           CPU allocation (default: 2)
-#   --max-instances Maximum instances (default: 10)
+#   --memory        Memory allocation (default: 16Gi)
+#   --cpu           CPU allocation (default: 4)
+#   --gpu           Number of GPUs per instance (default: 1)
+#   --gpu-type      GPU accelerator type (default: nvidia-l4)
+#   --max-instances Maximum instances (default: 1)
 #   --allow-unauth  Allow unauthenticated access (default: yes)
 #   --help          Display this help message
 #
@@ -40,9 +42,11 @@ NC='\033[0m' # No Color
 DEFAULT_PROJECT_ID="hackathons-461900"
 DEFAULT_REGION="us-central1"
 DEFAULT_SERVICE_NAME="healthcare-assistant-agent-service"
-DEFAULT_MEMORY="2Gi"
-DEFAULT_CPU="2"
-DEFAULT_MAX_INSTANCES="10"
+DEFAULT_MEMORY="16Gi"
+DEFAULT_CPU="4"
+DEFAULT_GPU="1"
+DEFAULT_GPU_TYPE="nvidia-l4"
+DEFAULT_MAX_INSTANCES="1"
 DEFAULT_TIMEOUT="300"
 DEFAULT_ALLOW_UNAUTH="yes"
 
@@ -52,6 +56,8 @@ REGION="${DEFAULT_REGION}"
 SERVICE_NAME="${DEFAULT_SERVICE_NAME}"
 MEMORY="${DEFAULT_MEMORY}"
 CPU="${DEFAULT_CPU}"
+GPU="${DEFAULT_GPU}"
+GPU_TYPE="${DEFAULT_GPU_TYPE}"
 MAX_INSTANCES="${DEFAULT_MAX_INSTANCES}"
 TIMEOUT="${DEFAULT_TIMEOUT}"
 ALLOW_UNAUTH="${DEFAULT_ALLOW_UNAUTH}"
@@ -98,6 +104,8 @@ Options:
     --service-name SERVICE_NAME    Cloud Run service name (default: ${DEFAULT_SERVICE_NAME})
     --memory MEMORY                Memory allocation (default: ${DEFAULT_MEMORY})
     --cpu CPU                      CPU allocation (default: ${DEFAULT_CPU})
+    --gpu NUM                      GPUs per instance (default: ${DEFAULT_GPU})
+    --gpu-type TYPE                GPU accelerator type (default: ${DEFAULT_GPU_TYPE})
     --max-instances NUM            Maximum instances (default: ${DEFAULT_MAX_INSTANCES})
     --timeout SECONDS              Request timeout (default: ${DEFAULT_TIMEOUT})
     --no-unauth                    Require authentication
@@ -111,7 +119,7 @@ Examples:
     ./deploy.sh --project-id my-project-123
 
     # Deploy with custom resources
-    ./deploy.sh --memory 4Gi --cpu 4 --max-instances 20
+    ./deploy.sh --memory 32Gi --cpu 8 --max-instances 3
 
     # Deploy with authentication required
     ./deploy.sh --no-unauth
@@ -144,6 +152,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --cpu)
             CPU="$2"
+            shift 2
+            ;;
+        --gpu)
+            GPU="$2"
+            shift 2
+            ;;
+        --gpu-type)
+            GPU_TYPE="$2"
             shift 2
             ;;
         --max-instances)
@@ -315,7 +331,10 @@ deploy_to_cloud_run() {
     print_info "Region: $REGION"
     print_info "Memory: $MEMORY"
     print_info "CPU: $CPU"
-    print_info "Max Instances: $MAX_INSTANCES"
+    print_info "GPU: $GPU x $GPU_TYPE"
+    print_info "GPU Zonal Redundancy: Disabled"
+    print_info "Billing: Instance-based"
+    print_info "Max Instances (service and revision): $MAX_INSTANCES"
     print_info "Timeout: ${TIMEOUT}s"
 
     local auth_flag="--allow-unauthenticated"
@@ -350,7 +369,12 @@ deploy_to_cloud_run() {
         $auth_flag \
         --memory "$MEMORY" \
         --cpu "$CPU" \
+        --gpu "$GPU" \
+        --gpu-type "$GPU_TYPE" \
+        --no-gpu-zonal-redundancy \
+        --no-cpu-throttling \
         --timeout "$TIMEOUT" \
+        --max "$MAX_INSTANCES" \
         --max-instances "$MAX_INSTANCES" \
         --set-env-vars "$env_vars" \
         --project "$PROJECT_ID"; then
@@ -410,7 +434,10 @@ main() {
     echo "  Service Name:    $SERVICE_NAME"
     echo "  Memory:          $MEMORY"
     echo "  CPU:             $CPU"
-    echo "  Max Instances:   $MAX_INSTANCES"
+    echo "  GPU:             $GPU x $GPU_TYPE"
+    echo "  GPU Redundancy:  Disabled"
+    echo "  Billing:         Instance-based"
+    echo "  Max Instances:   $MAX_INSTANCES (service and revision)"
     echo "  Timeout:         ${TIMEOUT}s"
     echo "  Allow Unauth:    $ALLOW_UNAUTH"
     echo ""
