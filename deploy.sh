@@ -291,7 +291,6 @@ build_container() {
     # Build using Cloud Build (recommended) or local Docker
     if gcloud builds submit --tag "$image_name" --project="$PROJECT_ID" --timeout=20m .; then
         print_success "Container built successfully: $image_name"
-        echo "$image_name"
     else
         print_error "Failed to build container"
         print_info "Trying local Docker build as fallback..."
@@ -300,7 +299,6 @@ build_container() {
             print_info "Pushing to Container Registry..."
             docker push "$image_name"
             print_success "Container built and pushed successfully (via Docker)"
-            echo "$image_name"
         else
             print_error "Failed to build container with both Cloud Build and Docker"
             exit 1
@@ -430,7 +428,8 @@ main() {
     validate_project
     enable_apis
 
-    local image_name=$(build_container)
+    build_container
+    local image_name="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
     if deploy_to_cloud_run "$image_name"; then
         get_service_url
